@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MORI Retail Insights</title>
+    <style>
+        :root {
+            --primary-color: #0f172a;
+            --accent-color: #0284c7;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #334155;
+            --text-title: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            line-height: 1.7;
+        }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 2.5rem 1rem;
+            text-align: center;
+            border-bottom: 4px solid var(--accent-color);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+        header p {
+            margin: 0.6rem 0 0 0;
+            font-size: 0.95rem;
+            color: #94a3b8;
+        }
+        .container {
+            max-width: 840px;
+            margin: 2.5rem auto;
+            padding: 0 1.5rem;
+        }
+        .search-container {
+            margin-bottom: 2rem;
+        }
+        .search-input {
+            width: 100%;
+            padding: 0.8rem 1.2rem;
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            box-sizing: border-box;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .search-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+        }
+        .news-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .news-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .news-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.05);
+        }
+        .news-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .news-date {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: white;
+            background-color: var(--accent-color);
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+        }
+        .news-title {
+            margin: 0 0 1.2rem 0;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-title);
+            line-height: 1.4;
+        }
+        .news-body {
+            font-size: 1rem;
+            color: var(--text-main);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .no-data {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        .loading {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>MORI Retail Insights</h1>
+        <p>商業施設事業部 ニュース配信アーカイブ</p>
+    </header>
+    <div class="container">
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="ニュースを検索（タイトル、本文）...">
+        </div>
+        <div id="loading" class="loading">データを読み込み中...</div>
+        <div id="newsList" class="news-list" style="display: none;"></div>
+    </div>
+
+    <script>
+        let newsData = [];
+
+        function formatNewsTitleAndDate(rawTitle) {
+            const dateMatch = rawTitle.match(/^(\d{2})(\d{2})(\d{2})_(.+)$/);
+            if (dateMatch) {
+                const year = '20' + dateMatch[1];
+                const month = dateMatch[2];
+                const day = dateMatch[3];
+                const cleanTitle = dateMatch[4];
+                return { date: `${year}.${month}.${day}`, title: cleanTitle };
+            }
+            return { date: 'UPDATE', title: rawTitle };
+        }
+
+        async function loadNews() {
+            const loadingEl = document.getElementById('loading');
+            const listEl = document.getElementById('newsList');
+            try {
+                const response = await fetch('data.json');
+                if (!response.ok) throw new Error('データの取得に失敗しました');
+                newsData = await response.json();
+                newsData.reverse(); 
+                renderNews(newsData);
+                loadingEl.style.display = 'none';
+                listEl.style.display = 'flex';
+            } catch (error) {
+                loadingEl.innerHTML = '<div class="no-data"><strong>データの読み込みに失敗しました。</strong></div>';
+                console.error(error);
+            }
+        }
+
+        function renderNews(data) {
+            const listEl = document.getElementById('newsList');
+            listEl.innerHTML = '';
+            if (data.length === 0) {
+                listEl.innerHTML = '<div class="no-data">該当するニュースが見つかりません。</div>';
+                return;
+            }
+            data.forEach(item => {
+                const parsed = formatNewsTitleAndDate(item.title);
+                const card = document.createElement('div');
+                card.className = 'news-card';
+                card.innerHTML = `
+                    <div class="news-meta">
+                        <span class="news-date">${parsed.date}</span>
+                    </div>
+                    <h2 class="news-title">${parsed.title}</h2>
+                    <div class="news-body">${escapeHtml(item.body)}</div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        function escapeHtml(string) {
+            if (typeof string !== 'string') return '';
+            return string.replace(/[&'`"<>]/g, function (match) {
+                return { '&': '&amp;', "'": '&#x27;', '`': '&#x60;', '"': '&quot;', '<': '&lt;', '>': '&gt;' }[match]
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const keyword = e.target.value.toLowerCase().trim();
+            if (!keyword) { renderNews(newsData); return; }
+            const filtered = newsData.filter(item => {
+                return item.title.toLowerCase().includes(keyword) || item.body.toLowerCase().includes(keyword);
+            });
+            renderNews(filtered);
+        });
+
+        window.addEventListener('DOMContentLoaded', loadNews);
+    </script>
+</body>
+</html>
